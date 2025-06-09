@@ -45,7 +45,8 @@ class ProductionMLPipeline:
             'MATICUSDT', 'ALGOUSDT', 'LTCUSDT', 'BCHUSDT', 'FILUSDT',
             'TRXUSDT', 'VETUSDT', 'XLMUSDT', 'ICPUSDT', 'THETAUSDT',
             'EOSUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT',
-            'CHZUSDT', 'ENJUSDT', 'ZILUSDT', 'BATUSDT', 'ZECUSDT'
+            'CHZUSDT', 'ENJUSDT', 'ZILUSDT', 'BATUSDT', 'ZECUSDT',
+            'BONKUSDT', 'FLOKIUSDT', 'LUNCUSDT'
         ]
         
         self.feature_names = [

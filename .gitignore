@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Model files (too large for git)
+models/*.txt
+models/*.bin
+models/*.joblib
+
+# Data files
+signals/*.json
+*.parquet
+*.csv.gz
+
+# Logs
+*.log
+*.jsonl
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+tmp/
+temp/
