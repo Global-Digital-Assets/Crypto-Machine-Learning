@@ -1,0 +1,24 @@
+{
+  "generated_at": "2025-06-09T07:01:03.414242",
+  "config": {
+    "buckets": [
+      "high",
+      "ultra"
+    ],
+    "percentile": 97.0,
+    "min_proba": 0.2
+  },
+  "signals": [
+    {
+      "timestamp": "2025-06-09T07:01:03.018755+00:00",
+      "symbol": "RVNUSDT",
+      "probability": 0.3230056072381252,
+      "bucket": "high",
+      "tp_pct": 6.0,
+      "sl_pct": 1.5,
+      "entry_price": 0.01747,
+      "tp_price": 0.018518200000000002,
+      "sl_price": 0.01720795
+    }
+  ]
+}

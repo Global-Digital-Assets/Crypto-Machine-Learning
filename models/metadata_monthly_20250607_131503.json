@@ -1,0 +1,131 @@
+{
+  "model_info": {
+    "filename": "lgbm_monthly_20250607_131503.txt",
+    "timestamp": "20250607_131503",
+    "model_type": "LightGBM",
+    "version": "production_v1.0",
+    "tag": "monthly"
+  },
+  "data_info": {
+    "timestamp": "2025-06-07T13:10:52.542053",
+    "days_back": 365,
+    "total_samples": 3197388,
+    "positive_rate": 0.08001155943538914,
+    "feature_names": [
+      "ret_5m",
+      "ret_1h",
+      "ret_4h",
+      "ret_24h",
+      "vol_spike",
+      "volatility_1h",
+      "volatility_4h",
+      "hl_spread",
+      "bar_return",
+      "sma_distance",
+      "rsi14"
+    ],
+    "symbols_count": 30,
+    "data_range": {
+      "start": 1717765824,
+      "end": 1749301852
+    }
+  },
+  "performance": {
+    "accuracy": 0.9428846653051395,
+    "auc": 0.8192957973577768,
+    "feature_importance": {
+      "ret_5m": 2531.0338582992554,
+      "ret_1h": 22173.723722457886,
+      "ret_4h": 72083.14867973328,
+      "ret_24h": 48646.57798290253,
+      "vol_spike": 6802.4096002578735,
+      "volatility_1h": 185114.31097602844,
+      "volatility_4h": 1253040.7308254242,
+      "hl_spread": 15087.664339065552,
+      "bar_return": 2252.779158592224,
+      "sma_distance": 23833.903893470764,
+      "rsi14": 11234.951868057251
+    },
+    "training_samples": 2557910,
+    "test_samples": 639478,
+    "model_params": {
+      "objective": "binary",
+      "metric": "auc",
+      "boosting_type": "gbdt",
+      "num_leaves": 63,
+      "learning_rate": 0.05,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "bagging_freq": 5,
+      "min_data_in_leaf": 100,
+      "num_threads": 4,
+      "verbosity": -1,
+      "random_state": 42
+    }
+  },
+  "cross_validation": {
+    "mean_accuracy": 0.9250160443461976,
+    "std_accuracy": 0.018523922840705826,
+    "mean_auc": 0.7846891741375517,
+    "std_auc": 0.033712340374245385,
+    "all_scores": [
+      0.9351601995128523,
+      0.93834842690346,
+      0.8962277959384347,
+      0.9104650420906064,
+      0.9448787572856344
+    ],
+    "all_auc": [
+      0.792341094725479,
+      0.8019794470592185,
+      0.7548801786371482,
+      0.7400870303417921,
+      0.8341581199241208
+    ]
+  },
+  "feature_names": [
+    "ret_5m",
+    "ret_1h",
+    "ret_4h",
+    "ret_24h",
+    "vol_spike",
+    "volatility_1h",
+    "volatility_4h",
+    "hl_spread",
+    "bar_return",
+    "sma_distance",
+    "rsi14"
+  ],
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "ADAUSDT",
+    "DOTUSDT",
+    "AVAXUSDT",
+    "LINKUSDT",
+    "ATOMUSDT",
+    "MATICUSDT",
+    "ALGOUSDT",
+    "LTCUSDT",
+    "BCHUSDT",
+    "FILUSDT",
+    "TRXUSDT",
+    "VETUSDT",
+    "XLMUSDT",
+    "ICPUSDT",
+    "THETAUSDT",
+    "EOSUSDT",
+    "AXSUSDT",
+    "SANDUSDT",
+    "MANAUSDT",
+    "GALAUSDT",
+    "CHZUSDT",
+    "ENJUSDT",
+    "ZILUSDT",
+    "BATUSDT",
+    "ZECUSDT"
+  ]
+}
