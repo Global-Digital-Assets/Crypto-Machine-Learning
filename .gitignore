@@ -1,0 +1,42 @@
+# Virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and databases
+*.log
+*.db
+*.sqlite3
+
+# Model files (too large for git)
+models/*.txt
+models/*.json
+models/backups/
+
+# Signals output
+signals/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment variables
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large data files
+*.parquet
+*.csv.gz
