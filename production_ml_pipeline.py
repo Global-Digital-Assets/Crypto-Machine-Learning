@@ -15,6 +15,12 @@ from typing import Dict, List, Tuple, Optional
 
 import polars as pl
 import lightgbm as lgb
+
+# Optimize for 8-core usage
+os.environ.setdefault('OMP_NUM_THREADS', '8')
+os.environ.setdefault('MKL_NUM_THREADS', '8')
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '8')
+
 import numpy as np
 from sklearn.model_selection import TimeSeriesSplit, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
@@ -295,7 +301,7 @@ class ProductionMLPipeline:
             'bagging_fraction': 0.8,
             'bagging_freq': 5,
             'min_data_in_leaf': 100,
-            'num_threads': 4,
+            'num_threads': 8,
             'verbosity': -1,
             'random_state': 42
         }

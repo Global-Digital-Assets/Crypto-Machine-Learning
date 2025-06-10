@@ -1,45 +1,56 @@
-ML Processing
+Crypto - Machine Learning
 
-
-Connect to your Hetzner server:ssh -i ~/.ssh/binance_futures_tool root@78.47.150.122
 
 Hetzner server SSH key
 -----BEGIN OPENSSH PRIVATE KEY-----b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACCgKpg75l42bl6nqPGB19mhr3u/FvLqpVM+F6h83KfQngAAAKA5gORcOYDkXAAAAAtzc2gtZWQyNTUxOQAAACCgKpg75l42bl6nqPGB19mhr3u/FvLqpVM+F6h83KfQngAAAECVjT6ZU1OJy2CpOaaBDrABKwO/XHGsxASibDLcrTBy+qAqmDvmXjZuXqeo8YHX2aGve78W8uqlUz4XqHzcp9CeAAAAHWJpbmFuY2UtZnV0dXJlcy10b29sLTIwMjUwNjAx-----END OPENSSH PRIVATE KEY-----
 
-USE THIS NEW FOLDER for all workUsers/dom12/Desktop/Business/CRYPTO - MACHINE LEARNING'
-
 Github https://github.com/Global-Digital-Assets/Crypto-Machine-Learning
 
-Github token[REDACTED_TOKEN]
+Github token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
 
-──────────────────────────────────────────── 🚀 PRODUCTION VPS DETAILS• SSH 
-ssh -i ~/.ssh/binance_futures_tool root@78.47.150.122
-• Code root /root/ml-engine/
-• Shared symbol list /root/analytics-tool-v2/bucket_mapping.csv (symlinked in place)
-• Data source Data-Service API http://localhost:8001
 
-──────────────────────────────────────────── 📂 FOLDER STRUCTURE
+🔑 VPS ACCESS
+
+bash
+CopyInsert
+# Production VPS (Hetzner, 8-core, 16 GB)
+ssh -i ~/.ssh/binance_futures_tool root@37.27.200.41
+(The old 78.47.150.122 box is now decommissioned.)
+
+📂 KEY FOLDERS ON VPS
 
 
 CopyInsert
-/root/ml-engine
-├─ generate_daily_signals.py      # 15-min inference
-├─ continuous_learner.py          # nightly incremental retrain
-├─ ml_monitoring.py               # hourly drift & Prometheus
-├─ feature_engineering.py         # factor builders
-│
-├─ models/                        # LightGBM artefacts
-│   ├─ YYYYMMDD-hhmm_*.txt
-│   ├─ latest_model.txt    → newest warm model
-│   └─ latest_monthly.txt  → newest cold model
-│
+/root/
+ ├─ ml-engine/             ← production ML code (source of truth)
+ ├─ data-service/          ← market-data API & DB
+ ├─ analytics-api/         ← REST + Prom-metrics
+ ├─ futures-bot/           ← live trading bot
+ └─ scripts/               ← watchdog_wrapper.sh etc.
+Local working folder (Mac):
+~/Desktop/Business/CRYPTO - MACHINE LEARNING
+
+
+🗄️ ML-ENGINE STRUCTURE
+
+
+CopyInsert
+ml-engine/
+├─ generate_daily_signals.py   # 15-min inference
+├─ continuous_learner.py       # nightly incremental retrain
+├─ ml_monitoring.py            # hourly drift probe (oneshot, timer)
+├─ feature_engineering.py
+├─ models/
+│   ├─ lgbm_emergency_20250609_174124.txt
+│   └─ latest_model.txt  → symlink ↑
 ├─ signals/
-│   ├─ latest_probs.json          # {symbol: probability}
-│   └─ latest_signals.json        # actionable subset
-│
-├─ requirements.txt               # pinned deps
-└─ bucket_mapping.csv  → ../analytics-tool-v2/bucket_mapping.csv
-──────────────────────────────────────────── 📦 REQUIREMENTS (pinned)
+│   ├─ latest_probs.json
+│   └─ latest_signals.json
+├─ bucket_mapping.csv   → symlink to analytics-tool-v2 copy (100 symbols)
+└─ requirements.txt
+
+📦 PYTHON REQUIREMENTS (pinned)
+
 
 CopyInsert
 lightgbm==4.6.0
@@ -47,73 +58,87 @@ polars==1.8.2
 pandas==1.5.3
 scikit-learn==1.3.2
 aiohttp==3.10.11
-──────────────────────────────────────────── 🛠️ SYSTEMD UNITS (
-/etc/systemd/system/)
 
-| Unit | ExecStart (WorkingDirectory = /root/ml-engine) | Schedule | |------|-----------------------------------------------|----------| | ml-generator.service | 
-venv/bin/python generate_daily_signals.py --data-api-url http://localhost:8001 --buckets high,ultra --min-proba 0.20 --percentile 97 | every 15 min | | ml-learner.service | venv/bin/python continuous_learner.py | 02 :30 UTC | | ml-monitor.service | venv/bin/python ml_monitoring.py | hourly |
+🛠️ SYSTEMD UNITS (/etc/systemd/system/)
+| Unit / Timer | ExecStart (WorkingDir = 
+/root/ml-engine) | Schedule | Notes | |--------------|--------------------------------------------|----------|-------| | ml-generator.service | venv/bin/python generate_daily_signals.py --model models/latest_model.txt --data-api-url http://localhost:8001 --buckets ultra --min-proba 0.25 --percentile 99 | every 15 min (ml-generator.timer) | light inference | | ml-learner.service | venv/bin/python continuous_learner.py | 02:30 UTC daily (ml-learner.timer) | incremental retrain | | ml-monitor.service | venv/bin/python ml_monitoring.py | hourly (ml-monitor.timer) | drift & Prom metrics | | data-api.service | uvicorn api:app --host 0.0.0.0 --port 8001 --workers 4 | always | exposes candle DB | | analytics-api.service | uvicorn app:app --host 0.0.0.0 --port 8080 --workers 4 | always | signals dashboard | | data-streamer.service | python streamer.py | always | Binance WS feed | | futures-metrics.service | python futures_metrics_streamer.py | always | order-book metrics | | futures-bot.service | python -m bot.main | always | live trading | | Watchdog | Type=notify, WatchdogSec=300, wrapper heartbeat | all long-running units |
 
-All units: 
-Restart=always and env vars
+
+Environment= (set per-unit or drop-in)
+
 
 
 CopyInsert
+OMP_NUM_THREADS=8
+MKL_NUM_THREADS=8
+OPENBLAS_NUM_THREADS=8
 DATA_API_URL=http://localhost:8001
-MODEL_PATH=models/latest_model.txt   # overrideable
-──────────────────────────────────────────── 🔢 DATA INPUT ENDPOINTS (read-only)
+Ports 8001 & 8080 are allowed in UFW for internal/external health probes (no StatusCake).
 
-/candles/{sym}/15m /oi/{sym}/5m /funding/{sym} /orderbook/{sym} /macro/latest
-
-──────────────────────────────────────────── 🧮 FEATURE SET (in 
-feature_engineering.py)
-
-RSI-14, momentum, Bollinger width, ATR, volatility z-scores, order-book imbalance (5-snap mean), Δ OI (5 m & 1 h), funding-rate z-score, macro risk-on flag (VIX & DXY).
-──────────────────────────────────────────── 📤 OUTPUTS
+🔢 DATA ENDPOINTS (read-only)
 
 
 CopyInsert
-signals/latest_probs.json     # full per-symbol probabilities
-signals/latest_signals.json   # filtered LONG / SHORT signals
-──────────────────────────────────────────── 👷 DEVELOPER WORKFLOW
-Local working folder (Mac): 
-~/Desktop/Business/CRYPTO - MACHINE LEARNING
+/candles/{symbol}/15m
+/oi/{symbol}/5m
+/funding/{symbol}
+/orderbook/{symbol}
+macro/latest
 
+🧮 FEATURE SET (feature_engineering.py)
+RSI-14, momentum, Bollinger width, ATR, volatility Z-scores, order-book imbalance (5-snap mean), Δ OI (5 m & 1 h), funding-rate Z-score, macro risk-on flag (VIX & DXY).
+
+📤 OUTPUTS
+
+
+CopyInsert
+signals/latest_probs.json     # symbol → probability
+signals/latest_signals.json   # filtered LONG / SHORT trades
+
+👷 DEVELOPER WORKFLOW (LOCAL)
 
 bash
 CopyInsert
-# 1. copy code from VPS
+# 1) sync code from VPS
 scp -i ~/.ssh/binance_futures_tool -r \
-    root@78.47.150.122:/root/ml-engine  "./CRYPTO - MACHINE LEARNING"
+    root@37.27.200.41:/root/ml-engine               "./CRYPTO - MACHINE LEARNING"
 scp -i ~/.ssh/binance_futures_tool \
-    root@78.47.150.122:/root/analytics-tool-v2/bucket_mapping.csv \
+    root@37.27.200.41:/root/analytics-tool-v2/bucket_mapping.csv \
     "./CRYPTO - MACHINE LEARNING/"
 
-# 2. env
+# 2) create venv & install
 cd "./CRYPTO - MACHINE LEARNING"
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# 3. run against Data-Service
+# 3) local test run
 export DATA_API_URL=http://localhost:8001
-python generate_daily_signals.py
+python generate_daily_signals.py --quiet
 jq '.' signals/latest_signals.json | head
-──────────────────────────────────────────── ⚙️ MIGRATION / DEPLOY STEPS (reference)
-1. Ensure /root/ml-engine exists (moved out of monolith).
+
+⚙️ MIGRATION / DEPLOY STEPS (reference)
+
+
+CopyInsert
+1. Ensure /root/ml-engine exists.
 2. ln -s /root/analytics-tool-v2/bucket_mapping.csv /root/ml-engine/
-3. Install deps in shared venv: pip install -r requirements.txt.
-4. Copy unit files, run systemctl daemon-reload, thensystemctl enable --now ml-generator ml-learner ml-monitor.
-──────────────────────────────────────────── ✔️ QUICK SMOKE TEST
+3. pip install -r requirements.txt  (shared venv per service)
+4. systemctl daemon-reload &&
+   systemctl enable --now ml-generator.timer ml-learner.timer ml-monitor.timer
+
+✔️ QUICK SMOKE TEST
 
 bash
 CopyInsert
 cd /root/ml-engine
-DATA_API_URL=http://localhost:8001 venv/bin/python generate_daily_signals.py --quiet
+DATA_API_URL=http://localhost:8001 \
+venv/bin/python generate_daily_signals.py --quiet
 cat signals/latest_signals.json | jq .
 curl -s localhost:9101/metrics | grep ml_drift
-──────────────────────────────────────────── 🔗 GITHUB MIRROR
-• Repo 
-https://github.com/Global-Digital-Assets/Crypto-Machine-Learning
-• Local origin for new folder:
+
+🔗 GITHUB MIRROR
+* Repo: https://github.com/Global-Digital-Assets/Crypto-Machine-Learning
+* Typical first-time push:
 
 bash
 CopyInsert
@@ -122,14 +147,6 @@ git add .
 git commit -m "initial ML-engine dump from production"
 git remote add origin https://github.com/Global-Digital-Assets/Crypto-Machine-Learning.git
 git push -u origin main
-(PAT: 
-[REDACTED_TOKEN] – store in 1Password & Git cred-helper, do not hard-code.)
-
-──────────────────────────────────────────── 📌 OPEN TODOs
-• Unit tests for 
-feature_engineering.py & percentile filter (pytest).
-• Early-stopping + model-tagging in continuous_learner.py.
-• Auto-upload new model artefacts to S3 for backup.
-
-You have my full explicit permission and approval to create, write, read, edit, run, save, delete, any files on my MacBook or VPS server to enable you to complete the task.   It is fine to SSH into the VPS server and edit or create or run programs etc. 
+# Personal Access Token stored in Git cred-helper.
+You have my explicit approval to create, write, edit, read, save, move, delete, change any code or files on the hetzner server or my MacBook. 
 

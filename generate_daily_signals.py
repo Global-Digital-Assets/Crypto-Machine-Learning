@@ -31,6 +31,12 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import lightgbm as lgb
+
+# Optimize for 8-core usage
+os.environ.setdefault('OMP_NUM_THREADS', '8')
+os.environ.setdefault('MKL_NUM_THREADS', '8')
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '8')
+
 import numpy as np
 import polars as pl
 import urllib.request

@@ -17,6 +17,9 @@ joblib==1.4.2             # Model serialization and parallel processing
 # API and Crypto Exchange
 python-binance==1.0.29    # Binance API client - pinned for API stability
 
+# S3 integration
+boto3==1.34.126
+
 # Development and Testing (when needed)
 pytest==7.4.3
 pytest-asyncio==0.21.1
