@@ -29,6 +29,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Tuple
+import time
 
 import lightgbm as lgb
 
@@ -77,31 +78,35 @@ def _fetch_df_from_api(symbol: str, api_base: str, limit: int = BARS_PER_DAY + 6
     Returns an empty DataFrame on error or missing data so the caller can skip
     gracefully.
     """
-    try:
-        url = f"{api_base.rstrip('/')}/candles/{symbol}/15m?limit={limit}"
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            payload = _json.loads(resp.read().decode())
-        if payload.get("count", 0) == 0:
-            return pl.DataFrame()
-
-        rows = [
-            {
-                "datetime": datetime.fromtimestamp(
-                    c["ts"] / 1000 if c["ts"] > 1e12 else c["ts"],
-                    tz=timezone.utc,
-                ),
-                "open": c["open"],
-                "high": c["high"],
-                "low": c["low"],
-                "close": c["close"],
-                "volume": c["vol"],
-            }
-            for c in payload["candles"]
-        ]
-        return pl.from_dicts(rows).with_columns(pl.lit(symbol).alias("symbol")).with_columns(pl.lit(symbol).alias(symbol))
-    except Exception as api_exc:
-        print("[api] fetch failed:", symbol, api_exc)
+    for attempt in range(3):
+        try:
+            url = f"{api_base.rstrip('/')}/candles/{symbol}/15m?limit={limit}"
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                payload = _json.loads(resp.read().decode())
+            break  # success
+        except Exception as api_exc:
+            if attempt == 2:
+                print("[api] fetch failed:", symbol, api_exc)
+                return pl.DataFrame()
+            time.sleep(1 + attempt)
+    if payload.get("count", 0) == 0:
         return pl.DataFrame()
+
+    rows = [
+        {
+            "datetime": datetime.fromtimestamp(
+                c["ts"] / 1000 if c["ts"] > 1e12 else c["ts"],
+                tz=timezone.utc,
+            ),
+            "open": c["open"],
+            "high": c["high"],
+            "low": c["low"],
+            "close": c["close"],
+            "volume": c["vol"],
+        }
+        for c in payload["candles"]
+    ]
+    return pl.from_dicts(rows).with_columns(pl.lit(symbol).alias("symbol")).with_columns(pl.lit(symbol).alias(symbol))
 
 
 def generate_signals(
@@ -130,8 +135,13 @@ def generate_signals(
         if data_api_url:
             df = _fetch_df_from_api(sym, data_api_url)
             if df.is_empty() or df.height < BARS_PER_DAY + 5:
-                stale_count += 1
-                continue
+                # fallback to local parquet if API failed or insufficient rows
+                pq_path = Path(parquet_dir) / f"{sym}.parquet"
+                if pq_path.exists():
+                    df = pl.read_parquet(pq_path)
+                else:
+                    stale_count += 1
+                    continue
             # age via timestamp column
             latest_ts = df.sort("datetime").tail(1)["datetime"][0]
             age_hours = (datetime.now(timezone.utc) - latest_ts).total_seconds() / 3600
