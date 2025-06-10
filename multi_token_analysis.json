@@ -1,0 +1,15 @@
+{
+  "generated_at": "2025-06-10T18:27:05.205248",
+  "config": {
+    "buckets": [
+      "ultra",
+      "high",
+      "mid",
+      "low",
+      "stable"
+    ],
+    "percentile": 97.0,
+    "min_proba": 0.2
+  },
+  "signals": []
+}

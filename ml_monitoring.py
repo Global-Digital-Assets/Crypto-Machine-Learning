@@ -16,7 +16,14 @@ import polars as pl
 import numpy as np
 from sklearn.metrics import roc_auc_score, accuracy_score
 import lightgbm as lgb
+from prometheus_client import Gauge, start_http_server
 
+
+# ---- Prometheus metrics ----
+start_http_server(9101)
+ML_ACCURACY = Gauge('ml_accuracy', 'Current model accuracy')
+ML_AUC = Gauge('ml_auc', 'Current model AUC')
+ML_DRIFT = Gauge('ml_drift', 'AUC drift vs baseline')
 logger = logging.getLogger(__name__)
 
 class MLMonitoringSystem:
@@ -147,6 +154,12 @@ class MLMonitoringSystem:
             
             logger.info(f"📊 Model Evaluation: Acc={current_accuracy:.3f} (drift: {abs(current_accuracy - 0.90):+.3f}), AUC={current_auc:.3f} (drift: {abs(current_auc - cv_baseline_auc):+.3f})")
             
+            
+            # Update Prometheus metrics
+            ML_ACCURACY.set(current_accuracy)
+            ML_AUC.set(current_auc)
+            ML_DRIFT.set(abs(current_auc - cv_baseline_auc))
+
             return evaluation_results
             
         except Exception as e:
