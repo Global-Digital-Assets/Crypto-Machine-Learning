@@ -158,7 +158,6 @@ def generate_signals(
                 continue
 
             # Freshness check using parquet file's modification time (robust & cheap)
-            import time
             age_hours = (time.time() - os.path.getmtime(pq_path)) / 3600
             if age_hours > 3:
                 stale_count += 1
