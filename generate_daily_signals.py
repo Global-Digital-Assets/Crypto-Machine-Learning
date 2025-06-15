@@ -29,8 +29,15 @@ import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Tuple
+import time
 
 import lightgbm as lgb
+
+# Optimize for 8-core usage
+os.environ.setdefault('OMP_NUM_THREADS', '8')
+os.environ.setdefault('MKL_NUM_THREADS', '8')
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '8')
+
 import numpy as np
 import polars as pl
 import urllib.request
@@ -40,12 +47,16 @@ import json
 # ---------------------------------------------------------------------------
 # Config defaults (can be overridden via CLI)
 # ---------------------------------------------------------------------------
-DEFAULT_BUCKETS = ["high", "ultra"]
+DEFAULT_BUCKETS = ["ultra", "high", "mid", "low", "stable"]
 DEFAULT_PERCENTILE = 99.0  # top-1 %
 MIN_PROBA = 0.25
+
 BUCKET_TP_SL: Dict[str, Tuple[float, float]] = {
+    "ultra": (3.5, 1.0),
     "high": (6.0, 1.5),
-    "ultra": (10.0, 2.0),
+    "mid": (3.5, 2.3),
+    "low": (2.5, 1.7),
+    "stable": (1.5, 1.0),
 }
 BARS_PER_DAY = 96  # 15-min bars
 
@@ -69,29 +80,31 @@ def _fetch_df_from_api(symbol: str, api_base: str, limit: int = BARS_PER_DAY + 6
     """
     try:
         url = f"{api_base.rstrip('/')}/candles/{symbol}/15m?limit={limit}"
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        with urllib.request.urlopen(url, timeout=5) as resp:
             payload = _json.loads(resp.read().decode())
-        if payload.get("count", 0) == 0:
-            return pl.DataFrame()
-
-        rows = [
-            {
-                "datetime": datetime.fromtimestamp(
-                    c["ts"] / 1000 if c["ts"] > 1e12 else c["ts"],
-                    tz=timezone.utc,
-                ),
-                "open": c["open"],
-                "high": c["high"],
-                "low": c["low"],
-                "close": c["close"],
-                "volume": c["vol"],
-            }
-            for c in payload["candles"]
-        ]
-        return pl.from_dicts(rows).with_columns(pl.lit(symbol).alias("symbol")).with_columns(pl.lit(symbol).alias(symbol))
     except Exception as api_exc:
+        # Fast-fail → caller will fallback to parquet
         print("[api] fetch failed:", symbol, api_exc)
         return pl.DataFrame()
+
+    if payload.get("count", 0) == 0:
+        return pl.DataFrame()
+
+    rows = [
+        {
+            "datetime": datetime.fromtimestamp(
+                c["ts"] / 1000 if c["ts"] > 1e12 else c["ts"],
+                tz=timezone.utc,
+            ),
+            "open": c["open"],
+            "high": c["high"],
+            "low": c["low"],
+            "close": c["close"],
+            "volume": c["vol"],
+        }
+        for c in payload["candles"]
+    ]
+    return pl.from_dicts(rows).with_columns(pl.lit(symbol).alias("symbol")).with_columns(pl.lit(symbol).alias(symbol))
 
 
 def generate_signals(
@@ -120,8 +133,13 @@ def generate_signals(
         if data_api_url:
             df = _fetch_df_from_api(sym, data_api_url)
             if df.is_empty() or df.height < BARS_PER_DAY + 5:
-                stale_count += 1
-                continue
+                # fallback to local parquet if API failed or insufficient rows
+                pq_path = Path(parquet_dir) / f"{sym}.parquet"
+                if pq_path.exists():
+                    df = pl.read_parquet(pq_path)
+                else:
+                    stale_count += 1
+                    continue
             # age via timestamp column
             latest_ts = df.sort("datetime").tail(1)["datetime"][0]
             age_hours = (datetime.now(timezone.utc) - latest_ts).total_seconds() / 3600
@@ -138,7 +156,6 @@ def generate_signals(
                 continue
 
             # Freshness check using parquet file's modification time (robust & cheap)
-            import time
             age_hours = (time.time() - os.path.getmtime(pq_path)) / 3600
             if age_hours > 3:
                 stale_count += 1
@@ -243,6 +260,15 @@ def main() -> None:
     except Exception as copy_exc:
         print("[signals] failed to write multi_token_analysis.json:", copy_exc)
 
+
+    # create/update symlink for latest_signals.json (backward-compat)
+    try:
+        latest_link = out_path / "latest_signals.json"
+        if latest_link.exists() or latest_link.is_symlink():
+            latest_link.unlink()
+        latest_link.symlink_to(file_path.name)
+    except Exception as link_exc:
+        print("[signals] failed to create latest_signals.json symlink:", link_exc)
     print(f"[signals] saved → {file_path}  (count={len(signals)})")
 
     # -------- logging diagnostics --------
